@@ -5,5 +5,5 @@ const noteSchema = new mongoose.Schema({
   userId: { type: String, index: true }
 });
 
-
+noteSchema.index({ userId: 1 })
 module.exports = mongoose.model("notes", noteSchema);
