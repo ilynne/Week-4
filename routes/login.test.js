@@ -141,7 +141,6 @@ describe("/login", () => {
         expect(res.statusCode).toEqual(400);
       });
       it("should change password for user0", async () => {
-        console.log('changing ', token0, token1)
         const res = await request(server)
           .post("/login/password")
           .set('Authorization', 'Bearer ' + token0)
@@ -158,7 +157,6 @@ describe("/login", () => {
         expect(loginRes1.statusCode).toEqual(200);
       });
       it("should change password for user1", async () => {
-        console.log('changing ', token0, token1)
         const res = await request(server)
           .post("/login/password")
           .set('Authorization', 'Bearer ' + token1)

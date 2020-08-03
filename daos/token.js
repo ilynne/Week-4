@@ -5,10 +5,8 @@ module.exports = {};
 
 // - getTokenForUserId(userId) - should be an async function that returns a string after creating a Token record
 module.exports.getTokenForUserId = async (userId) => {
-  console.log('getting token for ', userId)
   const uuid = await uuidv4();
   const token = await Token.create({ userId: userId, uuid: uuid });
-  console.log(token, token.uuid)
   return token.uuid;
 }
 
