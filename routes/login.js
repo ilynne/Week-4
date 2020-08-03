@@ -1,39 +1,52 @@
 const { Router } = require("express");
 const router = Router();
+// const isLoggedIn = require("./index.js");
 const bcrypt = require("bcrypt");
 const userDAO = require('../daos/user');
 const tokenDAO = require('../daos/token')
-const { route } = require(".");
 
-// router.use(async (req, res, next) => {
-//   console.log('isLoggedIn', req.params);
-//   if (false) {
-//     res.status(401);
-//   } else {
-//     next();
-//   }
-// })
-router.post(["/", "/signup", "/password"], async (req, res, next) => {
+const isLoggedIn = async (req, res, next) => {
+  const { authorization } = req.headers
+  if (authorization) {
+    console.log(authorization);
+    const token = authorization.split(' ')[1];
+    console.log('logged in user token is: ', token);
+    if (token) {
+      req.token = token;
+      const userId = await tokenDAO.getUserIdFromToken(token)
+      if (userId) {
+        req.userId = userId;
+        next();
+      } else {
+        res.sendStatus(401);
+      }
+    } else {
+      res.sendStatus(401);
+    }
+  } else {
+    res.sendStatus(401);
+  }
+}
+
+const emailAndPassword = async (req, res, next) => {
   const { email, password } = req.body
   if (!email || !password) {
+    // console.log('email and password', email, password)
     res.status(400).send('email and password are required')
   } else {
     next();
   }
-})
+}
 
 // Login
-router.post("/", async (req, res, next) => {
+router.post("/", emailAndPassword, async (req, res, next) => {
   const { email, password } = req.body
-  // const encryptedPassword = await bcrypt.hash(password, 10);
-  console.log('login route is stubbed', email, password)
-  // res.status(200).send('stub');
   try {
     const user = await userDAO.getUser(email);
-    // console.log(user.password, encryptedPassword)
     if (user && await bcrypt.compare(password, user.password)) {
       try {
-        console.log('passwords match');
+        // console.log('passwords match');
+        console.log('logging in: ', user, email, password)
         const token = await tokenDAO.getTokenForUserId(user._id)
         res.json({ token: token })
       } catch(e) {
@@ -45,25 +58,12 @@ router.post("/", async (req, res, next) => {
   } catch(e) {
     next(e)
   }
-  // try {
-  //   const user = await userDAO.getUser(email);
-  //   res.status(401)
-  //   // if (user.password === encryptedPassword) {
-  //   //   const token = await tokenDAO.getTokenForUserId(user._id)
-  //   //   res.json(token);
-  //   // } else {
-  //   //   next()
-  //   // }
-  // } catch(e) {
-  //   next(e);
-  // }
 });
 
 // Signup
-router.post("/signup", async (req, res, next) => {
+router.post("/signup", emailAndPassword, async (req, res, next) => {
   const { email, password } = req.body;
   const encryptedPassword = await bcrypt.hash(password, 10);
-  // console.log('signup', email, password);
   try {
     const user = await userDAO.createUser({ email: email, password: encryptedPassword });
     res.json(user);
@@ -73,53 +73,45 @@ router.post("/signup", async (req, res, next) => {
 })
 
 // Password
-router.post("/password", async (req, res, next) => {
-  const { email, password } = req.body
-  console.log('password route is stubbed', email, password);
-  res.status(401).send('stub');
+router.post("/password", isLoggedIn, async (req, res, next) => {
+  const { password } = req.body
+  // console.log('password route', password);
+  if (!password) {
+    res.status(400).send('email and password are required')
+  } else {
+    try {
+      console.log('change pw for ', req.userId, ' to ', password)
+      // res.json('change successful')
+      const encryptedPassword = await bcrypt.hash(password, 10);
+      await userDAO.updateUserPassword(req.userId, encryptedPassword);
+      res.status(200).send('success');
+    } catch(e) {
+      console.log('it did not work');
+      next(e);
+    }
+  }
+  // res.status(401).send('stub');
 })
 
 // Logout
-router.post("/logout", async (req, res, next) => {
-  const { email, password } = req.body
-  console.log('logout route is stubbed', email, password);
-  res.status(401).send('stub');
+router.post("/logout", isLoggedIn, async (req, res, next) => {
+  const deletedToken = await tokenDAO.removeToken(req.token);
+  if (deletedToken === true) {
+    res.status(200).send('success');
+  } else {
+    res.status(401).send('failure');
+  }
 })
 
-// route.use()
-
-// // Create
-// router.post("/", async (req, res, next) => {
-//   console.log(req.params)
-//   // const userId = req.params.userId;
-//   // const transaction = req.body;
-//   // transaction.userId = userId;
-//   // if (!transaction || JSON.stringify(transaction) === '{}' ) {
-//   //   res.status(400).send('transaction is required');
-//   // } else {
-//   //   try {
-//   //     const savedtransaction = await transactionDAO.create(transaction);
-//   //     res.json(savedtransaction);
-//   //   } catch(e) {
-//   //     next(e);
-//   //   }
-//   // }
-// });
 
 // errors
 router.use(async (error, req, res, next) => {
   if (error instanceof userDAO.BadDataError) {
     res.status(409).send(error.message);
   } else {
+    console.log(error.message)
     res.status(500).send('something went wrong');
   }
-  // console.log(error.message)
-  // res.status(500);
-  // if (error.message.includes('Cast to ObjectId failed')) {
-  //   res.status(400).send(`Invalid id provided`);
-  // } else {
-  //   res.status(500).send('Something went wrong.')
-  // }
 });
 
 module.exports = router;

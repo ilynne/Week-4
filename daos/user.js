@@ -17,17 +17,20 @@ module.exports.createUser = async (userObj) => {
 }
 
 module.exports.getUser = async (email) => {
-  return await User.findOne({ email: email }).lean();
+  try {
+    return await User.findOne({ email: email }).lean();
+  } catch(e) {
+    throw e;
+  }
 }
 
 module.exports.updateUserPassword = async (userId, password) => {
-  const user = await User.findOne({ _id: userId })
-  user.password = password
-  return await user.save();
+  try {
+    return await User.update({ _id: userId }, { password: password })
+  } catch(e) {
+    throw e;
+  }
 }
 
 class BadDataError extends Error {};
 module.exports.BadDataError = BadDataError;
-// - createUser(userObj) - should store a user record
-// - getUser(email) - should get a user record using their email
-// - updateUserPassword(userId, password) - should update the user's password field
